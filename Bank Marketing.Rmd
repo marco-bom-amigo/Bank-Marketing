@@ -1,0 +1,307 @@
+---
+title: "Bank Marketing"
+author: "M.Bonamichi"
+date: "21 de julho de 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Análises | Actionable Insights
+
+O objetivo dessa análise é extrair insights, a partir dos dados coletados, para direcionar, orquestrar e coreografar as próximas campanhas, a partir dos padrões encontrados nos dados.
+
+### Conhecendo os dados | Lendo os Dados & Tipos das Variáveis
+Primeiro vamos importar o dataset, e conhecer os tipos das variáveis com as quais trabalharemos.
+
+```{r}
+df <- read.csv("bank-full.csv", sep = ";")
+str(df)
+```
+
+### Conhecendo os dados | Valores das Variáveis
+Agora que conhecemos os tipos das variáveis, vamos conhecer suas distribuições, amplitude, mediana, quantidade etc.
+```{r}
+summary(df)
+```
+
+## 1. Qual profissão tem mais tendência a fazer um empréstimo?
+### De qual tipo? 
+
+Vamos começar nossa análise visualizando a distribuição das profissões que adquiriram crédito à habitação.
+
+```{r echo=FALSE}
+housing <- data.frame(t(table(df[,c(2, 7)])))
+
+library(ggplot2)
+ggplot(data=housing, aes(x=job, y=Freq, fill=housing)) +
+geom_bar(stat="identity", position=position_dodge()) +
+theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+scale_fill_manual("legend", values = c("no"="red", "yes"="blue")) +
+ggtitle("Crédito à Habitação") +
+xlab("Profissão") +
+ylab("Frequência")
+```
+
+Agora que conhecemos a distribuição dos dados, podemos realizar uma análise confirmatória, e verificar quais profissões são mais inclinadas a adquirir crédito à habitação.
+```{r echo=FALSE}
+for (i in unique(df$job)) {
+  t <- aggregate(df[df$job==i,]$job, list(df[df$job==i,]$housing), FUN=length)
+  if (prop.test(t(as.matrix(t$x)))$p.value < .05) {
+    if (t$x[2] > t$x[1]) {
+      print(i)
+    }
+  }
+}
+```
+
+Agora, vamos visualizar a distribuição das profissões que adquiriram crédito pessoal.
+
+```{r echo=FALSE}
+loan <- data.frame(t(table(df[,c(2, 8)])))
+
+library(ggplot2)
+ggplot(data=loan, aes(x=job, y=Freq, fill=loan)) +
+geom_bar(stat="identity", position=position_dodge()) +
+theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+scale_fill_manual("legend", values = c("no"="red", "yes"="blue")) +
+ggtitle("Crédito Pessoal") +
+xlab("Profissão") +
+ylab("Frequência")
+```
+
+A distribuição dos dados já responde à nossa pergunta, e podemos afirmar, sem uma análise confirmatória, que créditos pessoais são adquiridos com muito menos frequência, por todas as profissões, de forma unânime.
+
+## 1. Conclusão
+É unânine que todas as profissões são muito pouco, ou nada, inclinadas a fazer empréstimos pessoais, mas as profissões technician, entrepreneur, blue-collar, admin. e services aquiescem positiva e satisfatoriamente a creditos à moradia.
+
+## 2. Fazendo uma relação entre número de contatos e sucesso da campanha quais são os pontos relevantes a serem observados?
+
+Vamos conhecer as variáveis relacionadas ao número de interações com o cliente.
+
+```{r echo=FALSE}
+summary(df[,c('contact', 'day', 'month', 'duration', 'campaign', 'previous', 'poutcome')])
+```
+
+O número de contatos realizados antes da campanha é o dado mais curioso.
+Vamos analisá-lo.
+
+```{r echo=FALSE}
+poutcome <- data.frame(t(table(df[,c('previous', 'poutcome')])))
+
+library(ggplot2)
+ggplot(data=poutcome, aes(x=previous, y=Freq, fill=poutcome)) +
+geom_bar(stat="identity", position=position_dodge()) +
+theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+scale_fill_manual("legend", values = c("failure"="red", "other"="black", "success"="blue", "unknown"= "gray")) +
+ggtitle("Resultado por Número de Contatos (anteriores)") +
+xlab("Número de Contatos (anteriores)") +
+ylab("Frequência")
+```
+
+Os resultados de clientes que nunca foram contactados é sempre desconhecido, vamos remover esse dado da análise.
+
+```{r echo=FALSE}
+poutcome <- data.frame(t(table(df[,c('previous', 'poutcome')])))
+poutcome <- poutcome[poutcome$poutcome != "unknown",]
+poutcome$poutcome <- factor(poutcome$poutcome)
+poutcome$previous <- factor(poutcome$previous)
+
+library(ggplot2)
+ggplot(data=poutcome, aes(x=previous, y=Freq, fill=poutcome)) +
+geom_bar(stat="identity", position=position_dodge()) +
+theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+scale_fill_manual("legend", values = c("failure"="red", "other"="black", "success"="blue", "unknown"= "gray")) +
+ggtitle("Resultado Número de Contatos (anteriores)") +
+xlab("Número de Contatos (anteriores)") +
+ylab("Frequência")
+```
+
+A distribuição dos dados não mostra uma diferença significativa, embora de grandezas diferentes o comportamento, o padrão entre elas é muito parecido, se não o mesmo.
+
+A título de encontrarmos padrões que possam direcionar as próximas campanhas, vamos comparar os resultados positivos contra os negativos.
+
+```{r echo=FALSE}
+dfA <- subset(df, poutcome != "unknown", poutcome != "other")
+dfA <- df[df$poutcome != "unknown",]
+dfA <- dfA[dfA$poutcome != "other",]
+dfA$poutcome <- factor(dfA$poutcome)
+summary(dfA[,c('contact', 'month', 'duration', 'campaign', 'previous', 'poutcome')])
+
+```
+
+Agora, vamos conhecer como o resutado da campanha está distribuído dada cada variavel.
+
+```{r echo=FALSE}
+poutcome <- data.frame(t(table(dfA[,c('contact', 'poutcome')])))
+
+library(ggplot2)
+ggplot(data=poutcome, aes(x=contact, y=Freq, fill=poutcome)) +
+geom_bar(stat="identity", position=position_dodge()) +
+theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+scale_fill_manual("legend", values = c("failure"="red", "other"="black", "success"="blue", "unknown"= "gray")) +
+ggtitle("Resultado Tipo de Contato") +
+xlab("Tipo de Contato") +
+ylab("Frequência")
+```
+
+A distribuição dado o tipo de contato também apresenta o mesmo padrão.
+
+```{r echo=FALSE}
+poutcome <- data.frame(t(table(dfA[,c('month', 'poutcome')])))
+
+library(ggplot2)
+ggplot(data=poutcome, aes(x=month, y=Freq, fill=poutcome)) +
+geom_bar(stat="identity", position=position_dodge()) +
+theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+scale_fill_manual("legend", values = c("failure"="red", "success"="blue", "unknown"= "gray")) +
+ggtitle("Resultado por Mês") +
+xlab("Mês") +
+ylab("Frequência")
+```
+
+Analisando os meses enquanto critério de sazonalidade podemos afirmar que as campanhas realizadas em agosto, dezembro, julho, junho, março outubro e setembro são as com menor propensão a falha, mas não necessariamente a sucesso, são distribuições equivalentes, mas que não são inclinadas ao fracasso.
+
+```{r echo=FALSE}
+duration <- dfA[,c('duration', 'poutcome')]
+
+ggplot(data = duration, aes(x=poutcome, y=duration)) + geom_boxplot(aes(fill=poutcome)) +
+scale_fill_manual("legend", values = c("failure"="red", "success"="blue", "unknown"= "gray")) +
+ggtitle("Resultado por Duração") +
+xlab("Resutado") +
+ylab("Duração")
+```
+
+Embora haja muitos outliers, podemos afirmar que há um padrão em relação aos contatos com maior duração.
+Mas essa correlação não implica causalidade, os contatos com maior duração podem ser consequência do maior interesse dos usuários, por exemplo.
+
+```{r echo=FALSE}
+campaign <- dfA[,c('campaign', 'poutcome')]
+
+ggplot(data = campaign, aes(x=poutcome, y=campaign)) + 
+  geom_boxplot(aes(fill=poutcome)) +
+scale_fill_manual("legend", values = c("failure"="red", "success"="blue", "unknown"= "gray")) +
+ggtitle("Resultado por Número de Contatos") +
+xlab("Resultado") +
+ylab("Número de Contatos")
+```
+
+O número de contatos, sozinho, não mostra um padrão significativo que justifique segmentar os resultados a partir dele.
+
+## 2. Conclusão
+Sazonalidade é um fator discriminante relevante para a condução das campanhas, as outras variáveis apresentam padrões muito semelhantes, utilizá-las sozinhas como variáveis exôgenas não conduzirá satisfatoriamente os resultados das campanhas.
+
+## 3. Baseando-se nos resultados de adesão desta campanha qual o número médio e o máximo de ligações que você indica para otimizar a adesão? (Conclusão)
+
+A partir da análise anterior, podemos afirmar que o número de ligações não é uma variável que segmenta os dados a ponto de sustentar uma argumentação sólida a respeito da quantidade de ligações.
+
+Mas mesmo não sendo um fator de decisão, podemos indicar o número médio de ligações como 2, e o número máximo como 3.
+
+Os resultados mostram que essas são as quantidades de ligações com maior número de conversões, guardadas seus respectivos outliers, que não devem ser negligenciados, dadas as devidas peculiaridades de cada negociação.
+
+## 4. O resultado da campanha anterior tem relevância na campanha atual?
+```{r echo=FALSE}
+cor(dfA$previous, as.numeric(as.factor(as.character(dfA$poutcome))))
+```
+## 4. Conclusão
+Não há correlação entre as variáveis, não podemos afirmar que essa variável seja determinante.
+
+## 5. Qual o fator determinante para que o banco exija um seguro de crédito? (Conclusão)
+O fator determinante é se o cliente já possui crédito, ou não.
+Essa resposta é um padrão de mercado.
+
+## 6. Quais são as características mais proeminentes de um cliente que possua empréstimo imobiliário?
+
+A partir das análises anteriores, duas variáveis proeminentes são a profissão, e o mês da campanha.
+Número de contatos não é um fator decisivo.
+Tipo de contato também apresenta um padrão semelhante, não é uma variável que segmenta bem as abordagens de campanha.
+Duração do contato pode estar influenciada por um confounder, não é uma correlação que pode implicar causalidade
+
+Agora, analisando as outras variaveis.
+
+```{r echo=FALSE}
+df$loan.housing <- as.character(ifelse(df$loan == "yes", 1, 0) + ifelse(df$housing == "yes", ifelse(df$loan == "yes", 0, 1), 0))
+df$loan.housing <- gsub("1", "yes", df$loan.housing)
+df$loan.housing <- gsub("0", "no", df$loan.housing)
+
+ggplot(data = df, aes(x=loan.housing, y=age)) + 
+  geom_boxplot(aes(fill=loan.housing)) +
+scale_fill_manual("legend", values = c("no"="red", "yes"="blue")) +
+ggtitle("Empréstimo por Idade") +
+xlab("Resultado") +
+ylab("Idade")
+```
+
+Clientes com menos idade tendem a adquirir mais empréstismos.
+Mas essa variável também pode estar influenciada por um confounder, clientes com mais idade podem ter mais recursos e não precisar de empréstimos, e clientes com menos idade podem estar começando a fazer seus investimentos, por exemplo.
+
+```{r echo=FALSE}
+marital <- data.frame(t(table(df[,c('marital', 'loan.housing')])))
+
+ggplot(data=marital, aes(x=marital, y=Freq, fill=loan.housing)) +
+geom_bar(stat="identity", position=position_dodge()) +
+theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+scale_fill_manual("legend", values = c("no"="red", "yes"="blue")) +
+ggtitle("Resultado por Estado Civil") +
+xlab("Estado Civil") +
+ylab("Frequência")
+```
+
+O padrão entre os direntes estados civis se mantém, essa também não é uma variável que segmenta bem os clientes, a título de conduzir novas campanhas.
+
+```{r echo=FALSE}
+education <- data.frame(t(table(df[,c('education', 'loan.housing')])))
+
+ggplot(data=education, aes(x=education, y=Freq, fill=loan.housing)) +
+geom_bar(stat="identity", position=position_dodge()) +
+theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+scale_fill_manual("legend", values = c("no"="red", "yes"="blue")) +
+ggtitle("Resultado por Educação") +
+xlab("Educação") +
+ylab("Frequência")
+```
+
+Da mesma forma que a idade, embora essa variável também apresente uma diferença de padrão, também pode estar influenciada por um confounder, então não podemos afirmar com confiança que esse seja um fator de diferenciação preciso, embora possa ser usado.
+
+```{r echo=FALSE}
+default <- data.frame(t(table(df[,c('default', 'loan.housing')])))
+
+ggplot(data=default, aes(x=default, y=Freq, fill=loan.housing)) +
+geom_bar(stat="identity", position=position_dodge()) +
+theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+scale_fill_manual("legend", values = c("no"="red", "yes"="blue")) +
+ggtitle("Resultado por Crédito") +
+xlab("Crédito") +
+ylab("Frequência")
+```
+
+Clientes com crédito tendem a adquirir mais empréstimos, mas também são a maioria dos clientes, o que pode tornar a segmentação por essa variável injusta, e abrir margem para uma nova abordagem, a de conduzir campanhas para aquisição de crédito.
+
+```{r echo=FALSE}
+balance <- data.frame(t(table(df[,c('balance', 'loan.housing')])))
+
+ggplot(data = df, aes(x=loan.housing, y=balance)) + 
+  geom_boxplot(aes(fill=loan.housing)) +
+scale_fill_manual("legend", values = c("no"="red", "yes"="blue")) +
+ggtitle("Empréstimo por Remuneração") +
+xlab("Resultado") +
+ylab("Remuneração")
+```
+
+Há muitos outliers em ambos os segmentos de clientes, mas os clientes com uma remuneração menor tendem a adquirr mais empréstismos, o que corrobora as análises anteriores.
+
+```{r echo=FALSE}
+ggplot(data = df, aes(x=loan.housing, y=pdays)) + 
+  geom_boxplot(aes(fill=loan.housing)) +
+scale_fill_manual("legend", values = c("no"="red", "yes"="blue")) +
+ggtitle("Dias desde o último contato") +
+xlab("Resultado") +
+ylab("Dias desde o último contato")
+```
+
+Também há muitos outliers em ambos os segmentos de clientes estratificados a partir dessa variável, analisar o padrão é interessante, mas a diferença é pequena, o que também não nos permite afirmar com confiança que seja uma variável, sozinha, que possa segmentar bem os clientes.
+
+## Fim
+Com todas essas análises encontramos padrões muito pertinentes e coerentes para conduzir as próximas campanhas, mais informações tornariam as análises mais ricas, mas com as informações que já possuímos podemos conduzir melhores campanhas, com resultados (muito) mais satisfatórios.
